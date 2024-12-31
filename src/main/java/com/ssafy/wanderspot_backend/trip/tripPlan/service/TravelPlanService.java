@@ -1,9 +1,12 @@
 package com.ssafy.wanderspot_backend.trip.tripPlan.service;
 
+import com.ssafy.wanderspot_backend.entity.TravelPlan;
 import com.ssafy.wanderspot_backend.trip.tripPlan.dto.TravelPlanDto;
 import com.ssafy.wanderspot_backend.trip.tripPlan.dto.TravelPlanReviewDto;
 import java.util.List;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TravelPlanService {
 
@@ -20,5 +23,7 @@ public interface TravelPlanService {
     void deleteTravelPlan(Long id, String userId);
 
     Page<TravelPlanReviewDto> getTravelPlans(int page, int size);
+
+
 
 }

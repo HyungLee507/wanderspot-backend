@@ -62,83 +62,41 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         travelPlan.setJoinMembers(joinMembers);
 
         // DayPlanList 생성
-        List<DayPlan> dayPlans = mapDayPlanDtoToEntity(request.getDayPlanList(), travelPlan);
+        List<DayPlan> dayPlans = mapDayPlanDtoToEntity(request.getDayPlanList());
         travelPlan.setDayPlanList(dayPlans);
 
         // DayHouseList 생성
-        List<DayPlan> dayHouses = mapDayPlanDtoToEntity(request.getDayHouseList(), travelPlan);
+        List<DayPlan> dayHouses = mapDayPlanDtoToEntity(request.getDayHouseList());
         travelPlan.setDayHouseList(dayHouses);
+
+        // 여행 계획 저장
+        travelPlanRepository.save(travelPlan);
 
         // 초대된 사람들에게 알림 전송
         notifyParticipants(travelPlan.getJoinMembers(), travelPlan.getCreateUser().getUserId(),
                 "친구 " + createUser.getUserId() + "님의 여행 계획에 초대하셨습니다.", false);
 
-        travelPlanRepository.save(travelPlan);
-
         return mapEntityToTravelPlanDto(travelPlan);
     }
 
-    private List<DayPlan> mapDayPlanDtoToEntity(List<DayPlanDto> dayPlanDtoList, TravelPlan travelPlan) {
-        return dayPlanDtoList.stream().map(dayPlanDto -> {
-            DayPlan dayPlan = new DayPlan();
-//            dayPlan.setTravelPlan(travelPlan); // TravelPlan 연관 설정
-
-            // TravelSpot 리스트 생성
-            List<TravelSpot> travelSpots = dayPlanDto.getPlaceList().stream().map(travelSpotDto -> {
-                TravelSpot travelSpot = new TravelSpot();
-                travelSpot.setKakaoMapId(travelSpotDto.getKakaoMapId());
-                travelSpot.setAddressName(travelSpotDto.getAddressName());
-                travelSpot.setPlaceName(travelSpotDto.getPlaceName());
-                travelSpot.setCategoryName(travelSpotDto.getCategoryName());
-                travelSpot.setLatitude(travelSpotDto.getLat());
-                travelSpot.setLongitude(travelSpotDto.getLng());
-                travelSpot.setCity(travelSpotDto.getCity());
-                travelSpot.setDayPlan(dayPlan); // DayPlan 연관 설정
-                return travelSpot;
-            }).collect(Collectors.toList());
-
-            dayPlan.setPlaceList(travelSpots); // TravelSpot 리스트를 DayPlan에 설정
-            return dayPlan;
-        }).collect(Collectors.toList());
-    }
-
-
     @Transactional(readOnly = true)
     public List<TravelPlanDto> getCreatedTravelPlans(String userId) {
-        Member member = memberRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
-        return member.getCreatedPlans().stream()
+        return travelPlanRepository.findByCreateUserId(userId).stream()
                 .map(this::mapEntityToTravelPlanDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<TravelPlanDto> getJoinedTravelPlans(String userId) {
-        Member member = memberRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
-        return member.getJoinedPlans().stream()
+        return travelPlanRepository.findByJoinMemberId(userId).stream()
                 .map(this::mapEntityToTravelPlanDto)
                 .collect(Collectors.toList());
     }
 
-
     @Transactional(readOnly = true)
     public TravelPlanDto getTravelPlan(Long travelPlanId) {
-        log.info("travelPlan ID is = {} ", travelPlanId);
-        TravelPlan travelPlan = travelPlanRepository.findById(travelPlanId)
+        TravelPlan travelPlan = travelPlanRepository.findByIdWithDetails(travelPlanId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 여행 계획을 찾을 수 없습니다."));
-        log.info("travel plan data is ={}", travelPlan);
-        log.info("travel DayPlan data is ={}", travelPlan.getDayPlanList());
-        log.info("travel DayHouse data is ={}", travelPlan.getDayHouseList());
-        for (DayPlan dayPlan : travelPlan.getDayPlanList()) {
-            log.info("dayPlan is {}", dayPlan);
-        }
-        for (DayPlan dayPlan : travelPlan.getDayHouseList()) {
-            log.info("dayPlan is {}", dayPlan);
-        }
-        log.info("travel plan data is ={}", travelPlan);
 
         return mapEntityToTravelPlanDto(travelPlan);
     }
@@ -162,35 +120,26 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         PlanDate planDate = travelPlan.getPlanDate();
         planDate.setStart(request.getPlanDate().getStart());
         planDate.setEnd(request.getPlanDate().getEnd());
-        travelPlan.setPlanDate(planDate);
 
         // 참여 멤버 업데이트
         List<Member> joinMembers = memberRepository.findAllByUserIdIn(request.getJoinMemberIds());
         travelPlan.setJoinMembers(joinMembers);
 
         // DayPlanList 업데이트
-        travelPlan.getDayPlanList().clear();
-        List<DayPlan> updatedDayPlans = mapDayPlanDtoToEntity(request.getDayPlanList(), travelPlan);
-        travelPlan.getDayPlanList().addAll(updatedDayPlans);
+        List<DayPlan> updatedDayPlans = mapDayPlanDtoToEntity(request.getDayPlanList());
+        travelPlan.setDayPlanList(updatedDayPlans);
 
         // DayHouseList 업데이트
-        travelPlan.getDayHouseList().clear();
-        List<DayPlan> updatedDayHouses = mapDayPlanDtoToEntity(request.getDayHouseList(), travelPlan);
-        travelPlan.getDayHouseList().addAll(updatedDayHouses);
+        List<DayPlan> updatedDayHouses = mapDayPlanDtoToEntity(request.getDayHouseList());
+        travelPlan.setDayHouseList(updatedDayHouses);
 
-        List<Member> participants = travelPlan.getJoinMembers();
-        participants.add(travelPlan.getCreateUser()); // 생성자 포함
-        String updateUserId = request.getUpdateUserId();
-        log.info("updateUser id is ={}", updateUserId);
-        // 알림 전송 (수정자를 제외하고 알림 전송)
-        notifyParticipants(participants, updateUserId,
-                "친구 " + updateUserId + "님이 " + travelPlan.getTitle() + "여행 계획을 수정하셨습니다.", true);
-        // 저장
         travelPlanRepository.save(travelPlan);
+
+        notifyParticipants(travelPlan.getJoinMembers(), request.getUpdateUserId(),
+                "친구 " + request.getUpdateUserId() + "님이 " + travelPlan.getTitle() + " 여행 계획을 수정하셨습니다.", true);
 
         return mapEntityToTravelPlanDto(travelPlan);
     }
-
 
     @Transactional
     @Override
@@ -201,24 +150,39 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         if (!travelPlan.getCreateUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("삭제 권한이 없습니다.");
         }
+
         travelPlanRepository.delete(travelPlan);
     }
 
-    public void notifyParticipants(List<Member> participants, String creatorId, String messageTemplate,
-                                   boolean excludeCreator) {
-        log.info("notifyParticipants 진입");
+    private void notifyParticipants(List<Member> participants, String creatorId, String messageTemplate, boolean excludeCreator) {
         for (Member participant : participants) {
-            // 생성자 제외 조건
             if (excludeCreator && participant.getUserId().equals(creatorId)) {
                 continue;
             }
-            // 알림 메시지 생성 및 전송
             notificationService.createNotification(participant.getUserId(), messageTemplate);
-//            messagingTemplate.convertAndSend("/topic/notifications/" + participant.getUserId(), messageTemplate);
         }
     }
 
-    // 이건 문제가 없는거 같은데
+    private List<DayPlan> mapDayPlanDtoToEntity(List<DayPlanDto> dayPlanDtoList) {
+        return dayPlanDtoList.stream().map(dayPlanDto -> {
+            DayPlan dayPlan = new DayPlan();
+            List<TravelSpot> travelSpots = dayPlanDto.getPlaceList().stream().map(travelSpotDto -> {
+                TravelSpot travelSpot = new TravelSpot();
+                travelSpot.setKakaoMapId(travelSpotDto.getKakaoMapId());
+                travelSpot.setAddressName(travelSpotDto.getAddressName());
+                travelSpot.setPlaceName(travelSpotDto.getPlaceName());
+                travelSpot.setCategoryName(travelSpotDto.getCategoryName());
+                travelSpot.setLatitude(travelSpotDto.getLat());
+                travelSpot.setLongitude(travelSpotDto.getLng());
+                travelSpot.setCity(travelSpotDto.getCity());
+                travelSpot.setDayPlan(dayPlan);
+                return travelSpot;
+            }).collect(Collectors.toList());
+            dayPlan.setPlaceList(travelSpots);
+            return dayPlan;
+        }).collect(Collectors.toList());
+    }
+
     private TravelPlanDto mapEntityToTravelPlanDto(TravelPlan travelPlan) {
         TravelPlanDto dto = new TravelPlanDto();
         dto.setId(travelPlan.getId());
@@ -260,13 +224,7 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         }).collect(Collectors.toList());
     }
 
-    /**
-     * 페이징 처리된 여행 계획 목록을 가져옵니다.
-     *
-     * @param page 현재 페이지 번호 (0부터 시작)
-     * @param size 한 페이지에 표시할 항목 수
-     * @return 페이징 처리된 TravelPlanReviewDto 페이지
-     */
+    @Transactional(readOnly = true)
     @Override
     public Page<TravelPlanReviewDto> getTravelPlans(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);

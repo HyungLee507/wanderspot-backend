@@ -2,7 +2,7 @@ package com.ssafy.wanderspot_backend.comment.repository;
 
 import com.ssafy.wanderspot_backend.comment.domain.CommentDto;
 import com.ssafy.wanderspot_backend.entity.Comment;
-import io.lettuce.core.dynamic.annotation.Param;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
